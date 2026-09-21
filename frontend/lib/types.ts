@@ -1,0 +1,10 @@
+export type Prerequisite = { skill_id: number; skill_name: string; minimum_level: number };
+export type Skill = { id: number; name: string; description: string; category: string; difficulty: number; hours_per_level: number; prerequisites: Prerequisite[] };
+export type Requirement = { skill: Skill; required_level: number; importance: number };
+export type Career = { id: number; title: string; description: string; category: string; requirements?: Requirement[] };
+export type Profile = { id: number; name: string; weekly_hours: number; target_career_id: number | null; assessments: { skill_id: number; current_level: number }[] };
+export type SkillAnalysis = { skill_id: number; skill: string; current_level: number; required_level: number; gap: number; importance: number; readiness: number; priority_score: number; status: string };
+export type Analysis = { profile_id: number; career_id: number; career: string; readiness: number; skills: SkillAnalysis[] };
+export type Resource = { id: number; title: string; url: string; resource_type: string; difficulty: number; estimated_hours: number };
+export type RoadmapItem = { id: number; skill_id: number; skill: string; position: number; current_level: number; target_level: number; estimated_hours: number; start_week: number; end_week: number; status: string; resources: Resource[] };
+export type Roadmap = { id: number; profile_id: number; career_id: number; career: string; strategy: string; weekly_hours: number; readiness_before: number; estimated_weeks: number; items: RoadmapItem[] };
