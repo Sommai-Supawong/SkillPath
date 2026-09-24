@@ -2,7 +2,9 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { ArrowRight, CheckCheck, GitBranch, List, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/providers/AuthProvider";
+import { ArrowRight, CheckCheck, GitBranch, List, RotateCcw, Bookmark } from "lucide-react";
 import { Status, SectionHeading, strategyLabels, SkillBadge, SkillProgress, PageSkeleton } from "@/components/ui";
 import { SkillIdentity } from "@/components/SkillIcon";
 import { api, ApiError, getSession } from "@/lib/api";
@@ -13,6 +15,10 @@ const RoadmapDiagram = dynamic(() => import("./RoadmapGraph").then(module => mod
 const descriptions: Record<string, string> = { balanced: "สมดุลระหว่าง Skill Gap ความสำคัญ และพื้นฐาน", fast_track: "ให้ความสำคัญกับทักษะที่จำเป็น โดยยังเคารพ prerequisite", foundation_first: "เน้นสร้างพื้นฐานที่จำเป็น ก่อนต่อยอดทักษะขั้นถัดไป" };
 
 export default function RoadmapPageClient() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState<number | null>(null);
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
   const [graph, setGraph] = useState<RoadmapGraph | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -98,6 +104,56 @@ export default function RoadmapPageClient() {
     } catch { setError("ยังคำนวณแผนใหม่ไม่สำเร็จ กรุณาลองอีกครั้ง"); }
     finally { setLoading(false); }
   }
+
+  async function handleSavePlan() {
+    const session = getSession();
+    const pid = session.profileId || (profile?.id ? profile.id : null);
+    const cid = session.careerId || (roadmap?.career_id ? roadmap.career_id : null);
+    const careerTitle = graph?.career || roadmap?.career || "แผนพัฒนาสายอาชีพ";
+
+    if (!cid) {
+      setError("ไม่พบข้อมูลอาชีพเป้าหมาย กรุณาเลือกสายอาชีพและสร้าง Roadmap ก่อนบันทึก");
+      return;
+    }
+
+    if (!user) {
+      localStorage.setItem("skillpath_pending_save", JSON.stringify({
+        profileId: pid,
+        careerId: cid,
+        strategy,
+        name: careerTitle
+      }));
+      const redirectUrl = encodeURIComponent(`/my-plans/save?profile_id=${pid || ''}&career_id=${cid}&strategy=${strategy}`);
+      router.push(`/login?redirect=${redirectUrl}`);
+      return;
+    }
+
+    setSavingPlan(true);
+    setError("");
+    try {
+      const newPlan = await api<any>("/plans", {
+        method: "POST",
+        body: JSON.stringify({
+          name: careerTitle,
+          career_id: cid,
+          learner_profile_id: pid || undefined,
+          strategy,
+          weekly_hours: graph?.weekly_hours || 8,
+        }),
+      });
+      setMessage("บันทึกแผนการพัฒนาเรียบร้อยแล้ว!");
+      setSaveSuccess(newPlan.id);
+      setTimeout(() => {
+        router.push(`/my-plans/${newPlan.id}`);
+      }, 700);
+    } catch (err: any) {
+      console.error("Save plan failed:", err);
+      setError(err?.message || "ไม่สามารถบันทึกแผนได้ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setSavingPlan(false);
+    }
+  }
+
   async function retry() {
     if (retryAction === "recalculate") await recalculate();
     else if (retryAction === "generate") await generate();
@@ -120,7 +176,7 @@ export default function RoadmapPageClient() {
     <SectionHeading eyebrow="Learning Roadmap" title="เส้นทางการเรียนรู้ของคุณ" page><p>{graph?.career || roadmap?.career || "ก้าวต่อไปอย่างมีทิศทาง ด้วยแผนที่เริ่มจากทักษะของคุณ"}</p></SectionHeading>
     {!sessionReady ? <PageSkeleton kind="roadmap" /> : !hasProfile ? <Status empty="ยังไม่มี Roadmap เริ่มจากประเมินทักษะของคุณ" /> : <>
       {graph && <div className="roadmap-summary"><div><strong>{Math.round(graph.readiness)}%</strong><span>Career Readiness</span></div><div><strong>{strategyLabels[graph.strategy]}</strong><span>กลยุทธ์ที่ใช้อยู่</span></div><div><strong>{graph.weekly_hours} ชั่วโมง</strong><span>ต่อสัปดาห์</span></div><div><strong>{graph.estimated_weeks} สัปดาห์</strong><span>เวลาโดยประมาณ</span></div><div><strong>{graph.completed_count} / {graph.total_count}</strong><span>Requirement ที่ถึงเป้าหมาย</span></div></div>}
-      <div className="roadmap-toolbar glass-panel"><div><label htmlFor="strategy">Learning Strategy</label><select id="strategy" value={strategy} onChange={e => setStrategy(e.target.value)} disabled={loading}>{Object.entries(strategyLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></div><button className="neon" onClick={generate} disabled={loading}>{loading ? "กำลังอัปเดต…" : roadmap ? "สร้างแผนตามกลยุทธ์นี้" : "สร้าง Roadmap"}<ArrowRight size={17} /></button>{roadmap && <button className="secondary" onClick={recalculate} disabled={loading}><RotateCcw size={16} />คำนวณใหม่</button>}<p className="toolbar-note">{descriptions[strategy]}</p></div>
+      <div className="roadmap-toolbar glass-panel"><div><label htmlFor="strategy">Learning Strategy</label><select id="strategy" value={strategy} onChange={e => setStrategy(e.target.value)} disabled={loading}>{Object.entries(strategyLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></div><button className="neon" onClick={generate} disabled={loading}>{loading ? "กำลังอัปเดต…" : roadmap ? "สร้างแผนตามกลยุทธ์นี้" : "สร้าง Roadmap"}<ArrowRight size={17} /></button>{roadmap && <button className="secondary" onClick={recalculate} disabled={loading || savingPlan}><RotateCcw size={16} />คำนวณใหม่</button>}{roadmap && <button className="button primary" onClick={handleSavePlan} disabled={loading || savingPlan} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><Bookmark size={16} />{savingPlan ? "กำลังบันทึก…" : saveSuccess ? "บันทึกแล้ว ✓" : "บันทึกแผนของฉัน"}</button>}<p className="toolbar-note">{descriptions[strategy]}</p></div>
       <Status loading={loading && !roadmap} error={error} onRetry={retry} kind="roadmap" />
       {message && <div className="notice success" role="status"><CheckCheck size={20} /><p>{message}</p></div>}
       {graphError && <div className="notice"><div><strong>ยังแสดงแผนภาพไม่ได้ แต่ขั้นตอนการเรียนของคุณยังอยู่</strong><p>ใช้มุมมองรายการด้านล่าง หรือโหลดแผนภาพอีกครั้ง</p><button className="secondary" disabled={loading} onClick={async () => { if (roadmap) { setLoading(true); await Promise.all([loadGraph(roadmap.id), loadContext()]); setLoading(false); } }}>โหลดแผนภาพอีกครั้ง</button></div></div>}

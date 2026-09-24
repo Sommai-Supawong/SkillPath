@@ -8,6 +8,8 @@ export { Status, Readiness } from "./ui";
 
 const navigation = [["/", "หน้าหลัก"], ["/careers", "สำรวจอาชีพ"], ["/dashboard", "Dashboard"], ["/roadmap", "Roadmap"]];
 
+import { UserMenu } from "@/components/auth/UserMenu";
+
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -31,7 +33,9 @@ export function Shell({ children }: { children: ReactNode }) {
     <header className={`site-header${scrolled ? " scrolled" : ""}`}>
       <Link href="/" className="brand" aria-label="SkillPath หน้าหลัก"><span className="brand-mark"><Route size={22} /></span>SkillPath<span className="brand-dot">.</span></Link>
       <nav className="desktop-nav" aria-label="เมนูหลัก">{links}</nav>
-      <Link href="/careers" className="button secondary nav-cta">เริ่มต้นเส้นทาง <ArrowUpRight size={16} /></Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <UserMenu />
+      </div>
       <button ref={menu} className="icon-button mobile-menu" aria-label="เปิดเมนู" aria-haspopup="dialog" onClick={() => dialog.current?.showModal()}><Menu /></button>
     </header>
     <dialog ref={dialog} className="mobile-drawer" aria-label="เมนูหลัก" onClose={() => menu.current?.focus()} onClick={event => { if (event.target === dialog.current) closeMenu(); }}>

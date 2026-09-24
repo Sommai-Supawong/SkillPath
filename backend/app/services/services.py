@@ -149,8 +149,14 @@ class RoadmapService:
 
     def generate(self, profile_id: int, career_id: int, strategy_name: str, existing: Roadmap | None = None):
         profile = self.profiles.get_model(profile_id); career = self.careers.get(career_id)
-        if not career: raise not_found("Career")
-        if not profile.assessments: raise HTTPException(400, "Please complete your skill assessment first.")
+        if not profile.assessments:
+            if career.requirements:
+                for r in career.requirements:
+                    self.db.add(SkillAssessment(profile_id=profile.id, skill_id=r.skill_id, current_level=0))
+                self.db.commit()
+                self.db.refresh(profile)
+            else:
+                raise HTTPException(400, "Please complete your skill assessment first.")
         learner, career_spec = to_domain(profile, career)
         strategy_cls = STRATEGIES.get(strategy_name)
         if not strategy_cls: raise HTTPException(422, "Unknown roadmap strategy.")

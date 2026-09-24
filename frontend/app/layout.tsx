@@ -6,6 +6,16 @@ import "./globals.css";
 const noto = Noto_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-ui" });
 export const metadata: Metadata = { title: { default: "SkillPath — ค้นหาเส้นทางของคุณ", template: "%s | SkillPath" }, description: "ประเมินทักษะ วิเคราะห์ Skill Gap และสร้างเส้นทางการเรียนรู้ที่เหมาะกับสายอาชีพของคุณ" };
 
+import { AuthProvider } from "@/providers/AuthProvider";
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="th" className={noto.variable}><body><Shell>{children}</Shell></body></html>;
+  return (
+    <html lang="th" className={noto.variable}>
+      <body>
+        <AuthProvider>
+          <Shell>{children}</Shell>
+        </AuthProvider>
+      </body>
+    </html>
+  );
 }

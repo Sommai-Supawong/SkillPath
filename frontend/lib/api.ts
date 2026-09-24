@@ -1,3 +1,5 @@
+import { auth } from '@/lib/firebase/client';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export class ApiError extends Error {
@@ -6,9 +8,17 @@ export class ApiError extends Error {
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    
+    // Inject Firebase Token if available
+    if (typeof window !== 'undefined' && auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}${path}`, {
       ...options,
-      headers: { "Content-Type": "application/json", ...options?.headers },
+      headers: { ...headers, ...options?.headers },
       cache: "no-store",
     });
     if (!response.ok) {
