@@ -18,6 +18,7 @@ def not_found(label: str) -> HTTPException:
 def skill_out(skill) -> SkillOut:
     return SkillOut(
         id=skill.id, name=skill.name, description=skill.description, category=skill.category,
+        skill_type=skill.skill_type, icon_key=skill.icon_key, icon_kind=skill.icon_kind,
         difficulty=skill.difficulty, hours_per_level=skill.hours_per_level,
         prerequisites=[PrerequisiteOut(skill_id=p.prerequisite_skill_id, skill_name=p.prerequisite_skill.name, minimum_level=p.minimum_level) for p in skill.prerequisites],
     )
@@ -26,6 +27,7 @@ def skill_out(skill) -> SkillOut:
 def career_detail(career) -> CareerDetail:
     return CareerDetail(
         id=career.id, title=career.title, description=career.description, category=career.category,
+        required_skill_count=len(career.requirements),
         requirements=[RequirementOut(skill=skill_out(r.skill), required_level=r.required_level, importance=r.importance) for r in career.requirements],
     )
 
@@ -49,7 +51,12 @@ def to_domain(profile, career):
 
 class CareerService:
     def __init__(self, db: Session): self.repo = CareerRepository(db)
-    def list(self): return [CareerSummary.model_validate(c) for c in self.repo.list()]
+    def list(self):
+        return [CareerSummary(
+            id=c.id, title=c.title, description=c.description, category=c.category,
+            required_skill_count=len(c.requirements),
+            top_skills=[skill_out(r.skill) for r in c.requirements[:5]],
+        ) for c in self.repo.list()]
     def get(self, career_id: int):
         career = self.repo.get(career_id)
         if not career: raise not_found("Career")
@@ -111,7 +118,10 @@ class AnalysisService:
         learner, career_spec = to_domain(profile, career)
         readiness, gaps = GapAnalyzer().analyze(learner, career_spec)
         return AnalysisOut(profile_id=profile.id, career_id=career.id, career=career.title, readiness=readiness, skills=[
-            SkillAnalysis(skill_id=g.skill.id, skill=g.skill.name, current_level=g.current_level, required_level=g.required_level,
+            SkillAnalysis(skill_id=g.skill.id, skill=g.skill.name, skill_type=next(r.skill.skill_type for r in career.requirements if r.skill_id == g.skill.id),
+                          icon_key=next(r.skill.icon_key for r in career.requirements if r.skill_id == g.skill.id),
+                          icon_kind=next(r.skill.icon_kind for r in career.requirements if r.skill_id == g.skill.id),
+                          current_level=g.current_level, required_level=g.required_level,
                           gap=g.gap, importance=g.importance, readiness=g.readiness, priority_score=g.priority_score, status=g.status)
             for g in sorted(gaps, key=lambda item: -item.priority_score)
         ])
@@ -124,6 +134,7 @@ def roadmap_out(roadmap) -> RoadmapOut:
         estimated_weeks=roadmap.estimated_weeks, created_at=roadmap.created_at,
         items=[RoadmapItemOut(
             id=item.id, skill_id=item.skill_id, skill=item.skill.name, position=item.position,
+            skill_type=item.skill.skill_type, icon_key=item.skill.icon_key, icon_kind=item.skill.icon_kind,
             current_level=item.current_level, target_level=item.target_level, estimated_hours=item.estimated_hours,
             start_week=item.start_week, end_week=item.end_week, status=item.status,
             resources=[ResourceOut.model_validate(r) for r in item.skill.resources],

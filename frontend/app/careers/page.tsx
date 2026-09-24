@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Status } from "@/components/Shell";
+import { SkillIcon } from "@/components/SkillIcon";
 import { api } from "@/lib/api";
 import { Career } from "@/lib/types";
 
@@ -23,7 +24,11 @@ export default function CareersPage() {
     </select>
     <Status loading={loading} error={error} empty={!loading && !error && !careers.length ? "No careers are available yet." : undefined} />
     <div className="grid">{visibleCareers.map(career => <Link href={`/careers/${career.id}`} className="card card-link" key={career.id}>
-      <span className="badge">{career.category}</span><h2>{career.title}</h2><p>{career.description}</p><strong>View requirements →</strong>
+      <span className="badge">{career.category}</span><h2>{career.title}</h2><p>{career.description}</p>
+      {!!career.top_skills?.length && <div className="skill-stack" aria-label={`Top skills: ${career.top_skills.map(skill => skill.name).join(", ")}`}>
+        {career.top_skills.map(skill => <SkillIcon key={skill.id} name={skill.name} skillType={skill.skill_type} iconKey={skill.icon_key} iconKind={skill.icon_kind} size="sm" />)}
+      </div>}
+      <p className="skill-count">{career.required_skill_count} required skills</p><strong>View requirements →</strong>
     </Link>)}</div>
   </section>;
 }

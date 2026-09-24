@@ -99,6 +99,24 @@ def test_seed_integrity_and_idempotency(client):
         assert db.scalar(select(func.count(SkillPrerequisite.id))) == db.scalar(select(func.count()).select_from(
             select(SkillPrerequisite.skill_id, SkillPrerequisite.prerequisite_skill_id).distinct().subquery()
         ))
+        skills = list(db.scalars(select(Skill)))
+        assert all(skill.skill_type and skill.icon_key and skill.icon_kind for skill in skills)
+
+
+def test_skill_identity_metadata_is_serialized(client):
+    skills = client.get("/api/skills")
+    assert skills.status_code == 200
+    by_name = {skill["name"]: skill for skill in skills.json()}
+    assert by_name["React"]["skill_type"] == "Library"
+    assert by_name["React"]["icon_key"] == "react"
+    assert by_name["React"]["icon_kind"] == "simple-icons"
+    assert by_name["Algorithms"]["skill_type"] == "Concept"
+    assert by_name["Algorithms"]["icon_kind"] == "lucide"
+
+    career = next(item for item in client.get("/api/careers").json() if item["title"] == "Frontend Developer")
+    assert 3 <= len(career["top_skills"]) <= 5
+    assert career["required_skill_count"] >= len(career["top_skills"])
+    assert all(skill["skill_type"] for skill in career["top_skills"])
 
 
 @pytest.mark.parametrize("career_title", [

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Readiness, Status } from "@/components/Shell";
+import { SkillIdentity } from "@/components/SkillIcon";
 import { api, getSession } from "@/lib/api";
 import { Roadmap } from "@/lib/types";
 
@@ -18,7 +19,7 @@ export default function RoadmapPage(){
  <div className="toolbar"><div><label htmlFor="strategy">Learning strategy</label><select id="strategy" value={strategy} onChange={e=>setStrategy(e.target.value)}><option value="balanced">Balanced</option><option value="fast_track">Fast Track</option><option value="foundation_first">Foundation First</option></select></div><button onClick={generate} disabled={loading}>{roadmap?"Generate new roadmap":"Generate roadmap"}</button>{roadmap&&<button className="secondary" onClick={recalculate} disabled={loading}>Recalculate progress</button>}</div>
  <Status loading={loading&&!roadmap} error={error}/>{message&&<div className="notice">{message}</div>}
  {roadmap&&<><div className="grid"><Readiness value={roadmap.readiness_before}/><div className="card"><div className="metric">{roadmap.estimated_weeks} weeks</div><p>Estimated at {roadmap.weekly_hours} hours/week</p><span className="badge">{strategyLabels[roadmap.strategy]}</span></div><div className="card"><div className="metric">{roadmap.items.length}</div><p>remaining learning steps</p></div></div>
- {roadmap.items.length===0?<div className="notice">You meet every configured requirement for this career. Great work.</div>:<div className="timeline">{roadmap.items.map(item=><article className={`step ${item.status}`} key={item.id}><div className="card"><span className="badge">Step {item.position}</span><h2>{item.skill}</h2><div className="step-meta"><span>Level {item.current_level} → {item.target_level}</span><span>{item.estimated_hours} hours</span><span>Week {item.start_week}–{item.end_week}</span></div>
+ {roadmap.items.length===0?<div className="notice">You meet every configured requirement for this career. Great work.</div>:<div className="timeline">{roadmap.items.map(item=><article className={`step ${item.status}`} key={item.id}><div className="card"><span className="badge">Step {item.position}</span><SkillIdentity name={item.skill} skillType={item.skill_type} iconKey={item.icon_key} iconKind={item.icon_kind} size="lg" /><div className="step-meta"><span>Current {item.current_level} → Target {item.target_level}</span><span>{item.estimated_hours} estimated hours</span><span>Week {item.start_week}–{item.end_week}</span></div>
  <div className="actions"><button onClick={()=>update(item.id,item.target_level)} disabled={loading||item.status==='completed'}>{item.status==='completed'?"Completed":"Mark target complete"}</button></div>
  {item.resources.length>0&&<details><summary>Learning resources</summary><ul className="resource-list">{item.resources.map(resource=><li key={resource.id}><a href={resource.url} target="_blank" rel="noreferrer">{resource.title}</a> · {resource.estimated_hours}h</li>)}</ul></details>}</div></article>)}</div>}</>}
  {!roadmap&&!loading&&<div className="notice">Your roadmap will appear here after an assessment. <Link href="/careers">Choose a career</Link>.</div>}

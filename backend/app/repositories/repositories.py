@@ -8,7 +8,9 @@ class CareerRepository:
     def __init__(self, db: Session): self.db = db
 
     def list(self) -> list[Career]:
-        return list(self.db.scalars(select(Career).order_by(Career.title)))
+        return list(self.db.scalars(select(Career).options(
+            selectinload(Career.requirements).selectinload(CareerSkillRequirement.skill)
+        ).order_by(Career.title)))
 
     def get(self, career_id: int) -> Career | None:
         return self.db.scalar(select(Career).where(Career.id == career_id).options(

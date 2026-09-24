@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from sqlalchemy import select
 
-from app.core.database import Base, SessionLocal, engine
+from app.core.database import SessionLocal, ensure_schema
 from app.models import Career, CareerSkillRequirement, LearningResource, Skill, SkillPrerequisite
 
 
@@ -54,6 +54,55 @@ SKILLS = {
                       ("Social Media Marketing", 2, 8)],
     }.items()
     for name, difficulty, hours in rows
+}
+
+
+BRANDED_ICONS = {
+    "HTML": "html5", "CSS": "css", "JavaScript": "javascript", "TypeScript": "typescript",
+    "React": "react", "Next.js": "nextdotjs", "Python": "python", "FastAPI": "fastapi",
+    "Git": "git", "PostgreSQL": "postgresql", "Docker": "docker", "Kubernetes": "kubernetes",
+    "Terraform": "terraform", "NumPy": "numpy", "Pandas": "pandas", "Scikit-learn": "scikitlearn",
+    "PyTorch": "pytorch", "Linux": "linux", "Figma": "figma", "Selenium": "selenium",
+    "Apache Spark": "apachespark", "Apache Airflow": "apacheairflow",
+}
+
+SKILL_TYPE_GROUPS = {
+    "Programming Language": ["JavaScript", "TypeScript", "Python", "SQL", "Shell Scripting"],
+    "Markup Language": ["HTML"],
+    "Stylesheet": ["CSS"],
+    "Framework": ["Next.js", "FastAPI", "Selenium", "Playwright"],
+    "Library": ["React"],
+    "Database": ["PostgreSQL", "Vector Databases", "Data Warehouse"],
+    "API / Backend": ["REST API"],
+    "Cloud Platform": ["AWS", "Cloud Fundamentals", "Cloud Networking", "Cloud Security", "Identity and Access Management"],
+    "DevOps": ["Docker", "CI/CD", "MLOps Fundamentals", "Monitoring & Observability", "Pipeline Monitoring"],
+    "AI / Machine Learning": ["Machine Learning", "Deep Learning", "Scikit-learn", "PyTorch", "Feature Engineering", "Model Evaluation", "Model Deployment", "Natural Language Processing", "Transformers", "Large Language Models", "Prompt Engineering", "Embeddings", "Retrieval-Augmented Generation", "LLM Evaluation"],
+    "Data": ["NumPy", "Pandas", "Statistics", "Probability", "Linear Algebra", "Data Preprocessing", "Data Cleaning", "Exploratory Data Analysis", "Data Visualization", "Experimentation", "Data Modeling", "ETL", "Apache Spark", "Apache Airflow", "Data Quality", "Excel", "Power BI", "Web Analytics"],
+    "Testing": ["Software Testing Fundamentals", "Test Case Design", "Testing", "API Testing", "Performance Testing", "Usability Testing"],
+    "Version Control": ["Git"],
+    "Infrastructure": ["Kubernetes", "Infrastructure as Code", "Terraform", "Networking Fundamentals"],
+    "Concept": ["Programming Fundamentals", "Object-Oriented Programming", "Data Structures", "Algorithms", "Software Design Principles", "System Design", "Database Design", "Security Fundamentals"],
+    "Soft Skill": ["Communication", "User Research", "Content Marketing", "Social Media Marketing"],
+    "Tool": ["Linux", "Debugging", "Figma", "Wireframing", "Prototyping", "SEO"],
+}
+SKILL_TYPES = {name: skill_type for skill_type, names in SKILL_TYPE_GROUPS.items() for name in names}
+
+GENERIC_ICONS = {
+    "Programming Fundamentals": "code2", "Object-Oriented Programming": "boxes", "Data Structures": "network",
+    "Algorithms": "git-branch", "Software Design Principles": "panels-top-left", "System Design": "network",
+    "Debugging": "bug", "REST API": "braces", "Database Design": "database", "Testing": "test-tube",
+    "Statistics": "chart-no-axes-combined", "Probability": "percent", "Communication": "messages-square",
+    "Security Fundamentals": "shield", "Networking Fundamentals": "network", "Cloud Fundamentals": "cloud",
+    "Monitoring & Observability": "activity", "Data Visualization": "chart-column", "AWS": "cloud",
+    "Excel": "table-2", "Power BI": "chart-column", "Playwright": "test-tube",
+}
+
+TYPE_ICONS = {
+    "Programming Language": "code2", "Markup Language": "file-code-2", "Stylesheet": "palette",
+    "Framework": "layers-3", "Library": "library", "Database": "database", "API / Backend": "server",
+    "Cloud Platform": "cloud", "DevOps": "workflow", "AI / Machine Learning": "brain-circuit",
+    "Data": "chart-column", "Testing": "test-tube", "Version Control": "git-branch",
+    "Infrastructure": "network", "Concept": "lightbulb", "Soft Skill": "messages-square", "Tool": "wrench",
 }
 
 
@@ -161,6 +210,10 @@ OFFICIAL_RESOURCES = {
 
 
 def validate_definitions():
+    if set(SKILLS) != set(SKILL_TYPES):
+        missing = sorted(set(SKILLS) - set(SKILL_TYPES))
+        extra = sorted(set(SKILL_TYPES) - set(SKILLS))
+        raise ValueError(f"Skill identity metadata mismatch. Missing: {missing}; extra: {extra}")
     for name, (_, difficulty, hours) in SKILLS.items():
         if not 1 <= difficulty <= 5 or hours <= 0:
             raise ValueError(f"Invalid skill metadata: {name}")
@@ -187,7 +240,7 @@ def validate_definitions():
 
 def seed():
     validate_definitions()
-    Base.metadata.create_all(bind=engine)
+    ensure_schema()
     with SessionLocal() as db:
         # Normalize the legacy name in place so IDs and all user relationships survive.
         testing = db.scalar(select(Skill).where(Skill.name == "Testing"))
@@ -203,6 +256,9 @@ def seed():
                 item = Skill(name=name); db.add(item); skills[name] = item; created_skills += 1
             item.description = f"Apply {name} concepts and tools in practical {category.lower()} projects."
             item.category, item.difficulty, item.hours_per_level = category, difficulty, hours
+            item.skill_type = SKILL_TYPES[name]
+            item.icon_key = BRANDED_ICONS.get(name) or GENERIC_ICONS.get(name) or TYPE_ICONS[item.skill_type]
+            item.icon_kind = "simple-icons" if name in BRANDED_ICONS else "lucide"
         db.flush()
 
         careers = {item.title: item for item in db.scalars(select(Career))}

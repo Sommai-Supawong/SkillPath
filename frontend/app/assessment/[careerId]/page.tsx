@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Status } from "@/components/Shell";
+import { SkillIdentity } from "@/components/SkillIcon";
 import { api, storeSession } from "@/lib/api";
 import { Career, Profile } from "@/lib/types";
 
@@ -31,8 +32,8 @@ export default function AssessmentPage() {
       <div className="card"><label htmlFor="name">Your name</label><input id="name" value={name} onChange={e => setName(e.target.value)} required maxLength={100} placeholder="e.g. Alex" /></div>
       <div className="card"><label htmlFor="hours">Available study hours per week</label><input id="hours" type="number" min="1" max="80" step="0.5" value={weeklyHours} onChange={e => setWeeklyHours(Number(e.target.value))} required /></div>
       {(career.requirements || []).map(req => <div className="card slider-row" key={req.skill.id}>
-        <label htmlFor={`skill-${req.skill.id}`}>{req.skill.name}<span className="muted"><br/>Target {req.required_level}/5</span></label>
-        <input id={`skill-${req.skill.id}`} type="range" min="0" max="5" value={levels[req.skill.id] ?? 0} onChange={e => setLevels({...levels,[req.skill.id]:Number(e.target.value)})} />
+        <label htmlFor={`skill-${req.skill.id}`}><SkillIdentity name={req.skill.name} skillType={req.skill.skill_type} iconKey={req.skill.icon_key} iconKind={req.skill.icon_kind} /><span className="muted target-level">Target {req.required_level}/5</span></label>
+        <input aria-label={`Current ${req.skill.name} level`} id={`skill-${req.skill.id}`} type="range" min="0" max="5" value={levels[req.skill.id] ?? 0} onChange={e => setLevels({...levels,[req.skill.id]:Number(e.target.value)})} />
         <span className="level">{levels[req.skill.id] ?? 0}</span>
       </div>)}
       <Status error={error} /><button disabled={submitting}>{submitting ? "Saving…" : "Save assessment & analyze"}</button>

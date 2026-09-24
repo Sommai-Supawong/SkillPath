@@ -29,9 +29,12 @@ class SkillOut(ORMModel):
     name: str
     description: str
     category: str
+    skill_type: str
+    icon_key: str | None = None
+    icon_kind: Literal["simple-icons", "lucide"] | None = None
     difficulty: int
     hours_per_level: float
-    prerequisites: list[PrerequisiteOut] = []
+    prerequisites: list[PrerequisiteOut] = Field(default_factory=list)
 
 
 class RequirementOut(BaseModel):
@@ -45,6 +48,8 @@ class CareerSummary(ORMModel):
     title: str
     description: str
     category: str
+    required_skill_count: int = 0
+    top_skills: list[SkillOut] = Field(default_factory=list)
 
 
 class CareerDetail(CareerSummary):
@@ -91,6 +96,9 @@ class ProfileOut(ORMModel):
 class SkillAnalysis(BaseModel):
     skill_id: int
     skill: str
+    skill_type: str
+    icon_key: str | None = None
+    icon_kind: Literal["simple-icons", "lucide"] | None = None
     current_level: int
     required_level: int
     gap: int
@@ -121,6 +129,9 @@ class RoadmapItemOut(ORMModel):
     id: int
     skill_id: int
     skill: str
+    skill_type: str
+    icon_key: str | None = None
+    icon_kind: Literal["simple-icons", "lucide"] | None = None
     position: int
     current_level: int
     target_level: int
@@ -128,7 +139,7 @@ class RoadmapItemOut(ORMModel):
     start_week: float
     end_week: float
     status: str
-    resources: list[ResourceOut] = []
+    resources: list[ResourceOut] = Field(default_factory=list)
 
 
 class RoadmapOut(BaseModel):
