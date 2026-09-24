@@ -1,15 +1,24 @@
 import Link from "next/link";
+import { ArrowDown, GitBranch } from "lucide-react";
+import { CursorRingField, TextEmerge } from "@/components/HomeMotion";
+import { HomeContent } from "@/components/HomeContent";
+import { NeonGlowButton } from "@/components/ui";
 
 export default function Home() {
-  return <section>
-    <p className="eyebrow">Personalized career readiness</p>
-    <h1>Know the gap.<br />Build your path.</h1>
-    <p className="lead">Compare your current skills with a career target, understand your readiness, and get a dependency-safe learning roadmap that adapts as you progress.</p>
-    <div className="actions"><Link className="button" href="/careers">Explore careers</Link><Link className="button secondary" href="/dashboard">Continue my plan</Link></div>
-    <div className="grid">
-      <div className="card"><h3>Assess</h3><p>Rate each required skill from 0 to 5 using a clear shared scale.</p></div>
-      <div className="card"><h3>Analyze</h3><p>See weighted readiness, gaps, importance, and explainable priorities.</p></div>
-      <div className="card"><h3>Plan</h3><p>Choose Balanced, Fast Track, or Foundation First learning order.</p></div>
-    </div>
-  </section>;
+  return <>
+    <section className="hero">
+      <CursorRingField />
+      <div className="hero-content">
+        <p className="hero-eyebrow"><span className="status-dot" /> SKILLPATH · Career Learning Platform</p>
+        <h1>รู้ว่าคุณอยู่ตรงไหน<br /><span>และต้องเรียนอะไรต่อ</span></h1>
+        <p className="hero-lead">เชื่อมทักษะที่คุณมี กับอาชีพที่คุณอยากเป็น<br />วิเคราะห์ Skill Gap และสร้าง Learning Roadmap<br className="mobile-break" /> ที่เริ่มจากพื้นฐานของคุณ</p>
+        <div className="actions hero-actions"><NeonGlowButton href="/careers">เริ่มค้นหาเส้นทางของคุณ</NeonGlowButton><Link className="button secondary" href="#career-categories">สำรวจสายอาชีพ <ArrowDown size={17} /></Link></div>
+        <div className="hero-support"><span>Software</span><span>AI</span><span>Data</span><span>Cloud</span></div>
+        <p className="hero-note"><GitBranch size={15} /> เรียงลำดับจาก Skill Gap และพื้นฐานที่จำเป็น</p>
+      </div>
+      <div className="hero-coordinate" aria-hidden="true">YOUR NEXT CHAPTER / 01</div>
+    </section>
+    <HomeContent />
+    <section className="home-section final-cta"><p className="eyebrow">Explore your next step</p><TextEmerge><h2>พร้อมรู้หรือยังว่า<br />Skill ต่อไปของคุณคืออะไร?</h2></TextEmerge><p>เริ่มจากสิ่งที่คุณรู้ แล้วค่อย ๆ ไปถึงสิ่งที่คุณอยากเป็น</p><NeonGlowButton href="/careers">เริ่มค้นหาเส้นทางของคุณ</NeonGlowButton></section>
+  </>;
 }

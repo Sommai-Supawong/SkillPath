@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Shell } from "@/components/Shell";
+import { Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "SkillPath", description: "Personalized career readiness and learning roadmaps" };
+const noto = Noto_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-ui" });
+export const metadata: Metadata = { title: { default: "SkillPath — ค้นหาเส้นทางของคุณ", template: "%s | SkillPath" }, description: "ประเมินทักษะ วิเคราะห์ Skill Gap และสร้างเส้นทางการเรียนรู้ที่เหมาะกับสายอาชีพของคุณ" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><Shell>{children}</Shell></body></html>;
+  return <html lang="th" className={noto.variable}><body><Shell>{children}</Shell></body></html>;
 }

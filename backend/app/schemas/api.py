@@ -155,6 +155,49 @@ class RoadmapOut(BaseModel):
     items: list[RoadmapItemOut]
 
 
+RoadmapNodeStatus = Literal["completed", "current", "available", "locked", "critical"]
+
+
+class RoadmapGraphNode(BaseModel):
+    id: str
+    skill_id: int
+    name: str
+    skill_type: str
+    icon_key: str | None = None
+    icon_kind: Literal["simple-icons", "lucide"] | None = None
+    current_level: int
+    target_level: int
+    estimated_hours: float
+    priority_score: float
+    status: RoadmapNodeStatus
+    order: int
+    gap: int
+    description: str
+    resources: list[ResourceOut] = Field(default_factory=list)
+
+
+class RoadmapGraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    type: Literal["prerequisite"] = "prerequisite"
+    minimum_level: int
+
+
+class RoadmapGraphOut(BaseModel):
+    roadmap_id: int
+    career_id: int
+    career: str
+    strategy: str
+    readiness: float
+    weekly_hours: float
+    estimated_weeks: float
+    completed_count: int
+    total_count: int
+    nodes: list[RoadmapGraphNode]
+    edges: list[RoadmapGraphEdge]
+
+
 class RoadmapItemUpdate(BaseModel):
     status: Literal["not_started", "in_progress", "completed"] | None = None
     current_level: int | None = Field(default=None, ge=0, le=5)

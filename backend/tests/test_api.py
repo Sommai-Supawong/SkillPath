@@ -132,6 +132,11 @@ def test_gap_analysis_and_roadmap_are_generic(client, career_title):
     assert client.get(f"/api/profiles/{profile['id']}/analysis").status_code == 200
     roadmap = client.post("/api/roadmaps/generate", json={"profile_id": profile["id"], "career_id": career["id"], "strategy": "balanced"})
     assert roadmap.status_code == 201 and roadmap.json()["items"]
+    graph = client.get(f"/api/roadmaps/{roadmap.json()['id']}/graph")
+    assert graph.status_code == 200
+    payload = graph.json()
+    assert payload["nodes"] and len({node["id"] for node in payload["nodes"]}) == len(payload["nodes"])
+    assert len({edge["id"] for edge in payload["edges"]}) == len(payload["edges"])
 
 
 def test_representative_prerequisite_ordering(client):
@@ -152,3 +157,29 @@ def test_representative_prerequisite_ordering(client):
         positions = {item["skill"]: item["position"] for item in items}
         for prerequisite, dependent in pairs:
             assert positions[prerequisite] < positions[dependent]
+
+
+def test_roadmap_graph_serializes_unique_nodes_edges_and_backend_statuses(client):
+    career = next(item for item in client.get("/api/careers").json() if item["title"] == "Frontend Developer")
+    detail = client.get(f"/api/careers/{career['id']}").json()
+    profile = client.post("/api/profiles", json={
+        "name": "Graph Check", "weekly_hours": 8, "target_career_id": career["id"],
+    }).json()
+    levels = {"HTML": 5, "CSS": 4, "JavaScript": 2}
+    client.post(f"/api/profiles/{profile['id']}/assessments", json={"assessments": [
+        {"skill_id": requirement["skill"]["id"], "current_level": levels.get(requirement["skill"]["name"], 0)}
+        for requirement in detail["requirements"]
+    ]})
+    roadmap = client.post("/api/roadmaps/generate", json={
+        "profile_id": profile["id"], "career_id": career["id"], "strategy": "balanced",
+    }).json()
+    response = client.get(f"/api/roadmaps/{roadmap['id']}/graph")
+    assert response.status_code == 200
+    graph = response.json()
+    assert len({node["id"] for node in graph["nodes"]}) == len(graph["nodes"])
+    assert len({edge["id"] for edge in graph["edges"]}) == len(graph["edges"])
+    by_name = {node["name"]: node for node in graph["nodes"]}
+    assert by_name["HTML"]["status"] == "completed"
+    assert by_name["JavaScript"]["status"] == "current"
+    assert any(edge["source"] == str(by_name["JavaScript"]["skill_id"]) and edge["target"] == str(by_name["React"]["skill_id"]) for edge in graph["edges"])
+    assert graph["completed_count"] >= 2

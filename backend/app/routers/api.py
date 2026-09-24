@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.api import (
     AnalysisOut, AssessmentBatch, CareerDetail, CareerSummary, ProfileCreate, ProfileOut,
-    ProfileUpdate, ResourceOut, RoadmapGenerate, RoadmapItemUpdate, RoadmapOut, SkillOut,
+    ProfileUpdate, ResourceOut, RoadmapGenerate, RoadmapGraphOut, RoadmapItemUpdate, RoadmapOut, SkillOut,
 )
 from app.services.services import AnalysisService, CareerService, ProfileService, RoadmapService, SkillService
 
@@ -64,6 +64,11 @@ def generate_roadmap(payload: RoadmapGenerate, db: Session = Depends(get_db)):
 @router.get("/roadmaps/{roadmap_id}", response_model=RoadmapOut)
 def get_roadmap(roadmap_id: int, db: Session = Depends(get_db)):
     return RoadmapService(db).get(roadmap_id)
+
+
+@router.get("/roadmaps/{roadmap_id}/graph", response_model=RoadmapGraphOut)
+def get_roadmap_graph(roadmap_id: int, db: Session = Depends(get_db)):
+    return RoadmapService(db).graph(roadmap_id)
 
 
 @router.patch("/roadmap-items/{item_id}", response_model=RoadmapOut)

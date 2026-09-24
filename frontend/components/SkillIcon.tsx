@@ -8,13 +8,14 @@ type SkillIdentityProps = {
   iconKind?: SkillIconKind | null;
   size?: IconSize;
   compact?: boolean;
+  monochrome?: boolean;
 };
 
-export function SkillIcon({ name, skillType, iconKey, iconKind, size = "md" }: SkillIdentityProps) {
+export function SkillIcon({ name, skillType, iconKey, iconKind, size = "md", monochrome = false }: SkillIdentityProps) {
   const branded = iconKind !== "lucide" ? getBrandedIcon(iconKey, name) : undefined;
   const label = skillType ? `${name} — ${skillType}` : name;
   if (branded) {
-    const color = branded.hex.toLowerCase() === "000000" ? "var(--text)" : `#${branded.hex}`;
+    const color = monochrome || branded.hex.toLowerCase() === "000000" ? "var(--text)" : `#${branded.hex}`;
     return <span className={`skill-icon ${size}`} title={label} aria-hidden="true" style={{ color }}>
       <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d={branded.path} /></svg>
     </span>;

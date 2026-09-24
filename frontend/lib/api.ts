@@ -24,6 +24,8 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const storeSession = (profileId: number, careerId: number) => {
+  localStorage.removeItem("skillpath_roadmap_id");
+  sessionStorage.removeItem("skillpath_recent_progress");
   localStorage.setItem("skillpath_profile_id", String(profileId));
   localStorage.setItem("skillpath_career_id", String(careerId));
 };

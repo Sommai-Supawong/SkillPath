@@ -1,13 +1,14 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.domain import CareerSpec, GapAnalyzer, Learner, Requirement, RoadmapEngine, SkillSpec
+from app.domain import CareerSpec, DependencyCycleError, GapAnalyzer, Learner, Requirement, RoadmapEngine, SkillSpec
 from app.domain.strategies import STRATEGIES
 from app.models import LearnerProfile, Roadmap, RoadmapItem, SkillAssessment
 from app.repositories import CareerRepository, ProfileRepository, RoadmapRepository, SkillRepository
 from app.schemas.api import (
     AnalysisOut, CareerDetail, CareerSummary, PrerequisiteOut, ProfileCreate, ProfileOut,
-    ProfileUpdate, RequirementOut, ResourceOut, RoadmapItemOut, RoadmapOut, SkillAnalysis, SkillOut,
+    ProfileUpdate, RequirementOut, ResourceOut, RoadmapGraphEdge, RoadmapGraphNode,
+    RoadmapGraphOut, RoadmapItemOut, RoadmapOut, SkillAnalysis, SkillOut,
 )
 
 
@@ -153,7 +154,10 @@ class RoadmapService:
         learner, career_spec = to_domain(profile, career)
         strategy_cls = STRATEGIES.get(strategy_name)
         if not strategy_cls: raise HTTPException(422, "Unknown roadmap strategy.")
-        plan = RoadmapEngine(GapAnalyzer(), strategy_cls()).generate(learner, career_spec)
+        try:
+            plan = RoadmapEngine(GapAnalyzer(), strategy_cls()).generate(learner, career_spec)
+        except DependencyCycleError as error:
+            raise HTTPException(422, str(error)) from error
         previous_status = {item.skill_id: item.status for item in existing.items} if existing else {}
         roadmap = existing or Roadmap(profile_id=profile_id, career_id=career_id, strategy=strategy_name, readiness_before=plan.readiness)
         roadmap.strategy = strategy_name; roadmap.readiness_before = plan.readiness; roadmap.estimated_weeks = plan.estimated_weeks
@@ -171,6 +175,76 @@ class RoadmapService:
         return roadmap
 
     def get(self, roadmap_id: int): return roadmap_out(self.get_model(roadmap_id))
+
+    def graph(self, roadmap_id: int) -> RoadmapGraphOut:
+        roadmap = self.get_model(roadmap_id)
+        career = self.careers.get(roadmap.career_id)
+        if not career: raise not_found("Career")
+
+        learner, career_spec = to_domain(roadmap.profile, career)
+        readiness, analysis = GapAnalyzer().analyze(learner, career_spec)
+        analysis_by_id = {item.skill.id: item for item in analysis}
+        item_by_skill = {item.skill_id: item for item in roadmap.items}
+        requirement_ids = {requirement.skill_id for requirement in career.requirements}
+
+        edges = []
+        prerequisites_by_skill: dict[int, list] = {skill_id: [] for skill_id in requirement_ids}
+        for requirement in career.requirements:
+            for prerequisite in requirement.skill.prerequisites:
+                if prerequisite.prerequisite_skill_id not in requirement_ids:
+                    continue
+                prerequisites_by_skill[requirement.skill_id].append(prerequisite)
+                edges.append(RoadmapGraphEdge(
+                    id=f"{prerequisite.prerequisite_skill_id}-{requirement.skill_id}",
+                    source=str(prerequisite.prerequisite_skill_id), target=str(requirement.skill_id),
+                    minimum_level=prerequisite.minimum_level,
+                ))
+
+        unlocked_ids = {
+            skill_id for skill_id, prerequisites in prerequisites_by_skill.items()
+            if all(learner.get_skill_level(p.prerequisite_skill_id) >= p.minimum_level for p in prerequisites)
+        }
+        current_id = next(
+            (item.skill_id for item in roadmap.items if item.skill_id in unlocked_ids and item.current_level < item.target_level),
+            None,
+        )
+
+        nodes = []
+        completed_count = 0
+        for fallback_order, requirement in enumerate(career.requirements, 1):
+            skill = requirement.skill
+            result = analysis_by_id[skill.id]
+            roadmap_item = item_by_skill.get(skill.id)
+            if result.gap == 0:
+                node_status = "completed"
+                completed_count += 1
+            elif skill.id == current_id:
+                node_status = "current"
+            elif skill.id not in unlocked_ids:
+                node_status = "locked"
+            elif result.gap >= 3:
+                node_status = "critical"
+            else:
+                node_status = "available"
+            nodes.append(RoadmapGraphNode(
+                id=str(skill.id), skill_id=skill.id, name=skill.name, skill_type=skill.skill_type,
+                icon_key=skill.icon_key, icon_kind=skill.icon_kind,
+                current_level=result.current_level, target_level=result.required_level,
+                estimated_hours=roadmap_item.estimated_hours if roadmap_item else 0,
+                priority_score=result.priority_score, status=node_status,
+                order=roadmap_item.position if roadmap_item else fallback_order,
+                gap=result.gap, description=skill.description,
+                resources=[ResourceOut.model_validate(resource) for resource in skill.resources],
+            ))
+
+        nodes.sort(key=lambda node: (node.order, node.skill_id))
+        edges.sort(key=lambda edge: (int(edge.source), int(edge.target)))
+        return RoadmapGraphOut(
+            roadmap_id=roadmap.id, career_id=roadmap.career_id, career=roadmap.career.title,
+            strategy=roadmap.strategy, readiness=readiness, weekly_hours=roadmap.profile.weekly_hours,
+            estimated_weeks=roadmap.estimated_weeks, completed_count=completed_count,
+            total_count=len(nodes), nodes=nodes, edges=edges,
+        )
 
     def update_item(self, item_id: int, status_value: str | None, current_level: int | None):
         item = self.db.get(RoadmapItem, item_id)
