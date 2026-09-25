@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pytest
+from unittest.mock import patch
+from app.auth.verifier import MockTokenVerifier
 
 from app.main import app as fastapi_app
 from app.core.database import Base, get_db
@@ -54,13 +56,25 @@ def setup_data():
     db.add_all([req1, req2])
     db.commit()
     
-    yield
+    with patch("app.auth.dependencies.token_verifier", MockTokenVerifier()):
+        yield
     db.close()
     fastapi_app.dependency_overrides.pop(get_db, None)
 
 def test_auth_no_token():
     response = client.get("/api/users/me")
     assert response.status_code in [401, 403] # HTTPBearer returns 403 if no token
+
+
+def test_cors_authorization_preflight():
+    response = client.options("/api/users/me", headers={
+        "Origin": "http://localhost:3000",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "authorization",
+    })
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "authorization" in response.headers["access-control-allow-headers"].lower()
 
 def test_auth_invalid_token():
     response = client.get("/api/users/me", headers={"Authorization": "Bearer invalid-token"})
@@ -96,6 +110,13 @@ def test_plan_creation_and_ownership():
     get_response_user2 = client.get(f"/api/plans/{plan_id}", headers={"Authorization": "Bearer mock-valid-token-user2"})
     assert get_response_user2.status_code == 404
 
+    # Linking a guest profile to a plan also protects its assessment and roadmap APIs.
+    assert client.get(f"/api/profiles/{profile_id}").status_code == 401
+    assert client.get(f"/api/profiles/{profile_id}", headers={"Authorization": "Bearer mock-valid-token-user2"}).status_code == 404
+    assert client.post(f"/api/profiles/{profile_id}/assessments", json={"assessments": [{"skill_id": 1, "current_level": 1}]}).status_code == 401
+    assert client.get(f"/api/profiles/{profile_id}", headers={"Authorization": "Bearer mock-valid-token-user1"}).status_code == 200
+    assert client.post("/api/plans", json={"name": "Stolen", "career_id": 1, "learner_profile_id": profile_id, "strategy": "balanced", "weekly_hours": 10}, headers={"Authorization": "Bearer mock-valid-token-user2"}).status_code == 404
+
 def test_progress_update_and_completion():
     # Fetch User 1 plan
     plans_res = client.get("/api/plans", headers={"Authorization": "Bearer mock-valid-token-user1"})
@@ -105,7 +126,7 @@ def test_progress_update_and_completion():
     
     # Update progress (Simulate meeting requirements)
     # HTML -> 4, JS -> 5
-    client.post(f"/api/profiles/{profile_id}/assessments", json={"assessments": [{"skill_id": 1, "current_level": 4}, {"skill_id": 2, "current_level": 5}]})
+    client.post(f"/api/profiles/{profile_id}/assessments", json={"assessments": [{"skill_id": 1, "current_level": 4}, {"skill_id": 2, "current_level": 5}]}, headers={"Authorization": "Bearer mock-valid-token-user1"})
     
     # Recalculate plan progress
     prog_res = client.post(f"/api/plans/{plan_id}/progress", headers={"Authorization": "Bearer mock-valid-token-user1"})

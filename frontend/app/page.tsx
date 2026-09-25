@@ -3,14 +3,18 @@ import { ArrowDown, GitBranch } from "lucide-react";
 import { CursorRingField, TextEmerge } from "@/components/HomeMotion";
 import { HomeContent } from "@/components/HomeContent";
 import { NeonGlowButton } from "@/components/ui";
+import { BrandLogo } from "@/components/BrandLogo";
+import { CareerRoleWriter } from "@/components/CareerRoleWriter";
 
 export default function Home() {
   return <>
     <section className="hero">
       <CursorRingField />
       <div className="hero-content">
+        <BrandLogo size="hero" priority />
         <p className="hero-eyebrow"><span className="status-dot" /> SKILLPATH · Career Learning Platform</p>
         <h1>รู้ว่าคุณอยู่ตรงไหน<br /><span>และต้องเรียนอะไรต่อ</span></h1>
+        <CareerRoleWriter />
         <p className="hero-lead">เชื่อมทักษะที่คุณมี กับอาชีพที่คุณอยากเป็น<br />วิเคราะห์ Skill Gap และสร้าง Learning Roadmap<br className="mobile-break" /> ที่เริ่มจากพื้นฐานของคุณ</p>
         <div className="actions hero-actions"><NeonGlowButton href="/careers">เริ่มค้นหาเส้นทางของคุณ</NeonGlowButton><Link className="button secondary" href="#career-categories">สำรวจสายอาชีพ <ArrowDown size={17} /></Link></div>
         <div className="hero-support"><span>Software</span><span>AI</span><span>Data</span><span>Cloud</span></div>

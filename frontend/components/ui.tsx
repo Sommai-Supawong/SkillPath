@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
-import { ArrowRight, Check, CircleAlert, Compass, LockKeyhole, RotateCcw } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, LockKeyhole, RotateCcw } from "lucide-react";
+import { BrandLogo } from "./BrandLogo";
 
 export const strategyLabels: Record<string, string> = { balanced: "Balanced", fast_track: "Fast Track", foundation_first: "Foundation First" };
 export const levelLabels = ["ยังไม่เคยเรียน", "รู้จักแนวคิดเบื้องต้น", "ทำงานพื้นฐานโดยมีคำแนะนำ", "ทำงานทั่วไปได้ด้วยตนเอง", "ใช้ได้คล่องในงานที่ซับซ้อนขึ้น", "ใช้ได้เชี่ยวชาญและอธิบายแนวทางได้"];
@@ -16,7 +17,7 @@ export function PageSkeleton({ kind = "cards" }: { kind?: "cards" | "form" | "da
 export function Status({ loading, error, empty, onRetry, kind = "cards" }: { loading?: boolean; error?: string; empty?: string; onRetry?: () => void; kind?: "cards" | "form" | "dashboard" | "roadmap" }) {
   if (loading) return <PageSkeleton kind={kind} />;
   if (error) return <div className="notice error" role="alert"><CircleAlert size={22} aria-hidden="true" /><div><strong>{error}</strong><p>กรุณาลองอีกครั้ง ข้อมูลที่กรอกไว้จะยังอยู่</p>{onRetry && <button className="secondary" onClick={onRetry}><RotateCcw size={16} />ลองอีกครั้ง</button>}</div></div>;
-  if (empty) return <div className="empty-state"><Compass size={32} aria-hidden="true" /><h2>{empty}</h2><p>เลือกสายอาชีพและประเมินทักษะ เพื่อเริ่มเส้นทางการเรียนรู้ของคุณ</p><Link className="button" href="/careers">สำรวจอาชีพ <ArrowRight size={18} /></Link></div>;
+  if (empty) return <div className="empty-state"><BrandLogo size="state" /><h2>{empty}</h2><p>เลือกสายอาชีพและประเมินทักษะ เพื่อเริ่มเส้นทางการเรียนรู้ของคุณ</p><Link className="button" href="/careers">สำรวจอาชีพ <ArrowRight size={18} /></Link></div>;
   return null;
 }
 export function Readiness({ value, label = "Career Readiness" }: { value: number; label?: string }) {

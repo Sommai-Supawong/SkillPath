@@ -20,6 +20,11 @@ class PlanService:
         profile = None
         if payload.learner_profile_id:
             profile = self.db.get(LearnerProfile, payload.learner_profile_id)
+            existing_owner = self.db.query(DevelopmentPlan.user_id).filter(
+                DevelopmentPlan.learner_profile_id == payload.learner_profile_id
+            ).first()
+            if existing_owner and existing_owner[0] != user_id:
+                raise HTTPException(status_code=404, detail="Profile not found")
         
         if not profile:
             profile = LearnerProfile(

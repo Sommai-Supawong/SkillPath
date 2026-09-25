@@ -64,7 +64,7 @@ docs/Document.md primary specification
 
 ## Database entities
 
-`careers`, `skills`, `career_skill_requirements`, `skill_prerequisites`, `learner_profiles`, `skill_assessments`, `learning_resources`, `roadmaps`, and `roadmap_items` use foreign keys and uniqueness constraints. The idempotent seed contains 15 careers, 87 shared skills, 181 requirements, 93 prerequisite edges, and 70 resources. It updates records by unique names and relationship keys, preserving existing IDs and learner data.
+`careers`, `skills`, `career_skill_requirements`, `skill_prerequisites`, `learner_profiles`, `skill_assessments`, `learning_resources`, `roadmaps`, and `roadmap_items` use foreign keys and uniqueness constraints. The idempotent seed contains 15 careers, 87 shared skills, 181 requirements, 88 prerequisite edges, and 16 resources. It updates records by unique names and relationship keys, preserving existing IDs and learner data.
 
 ## Local setup
 
@@ -123,8 +123,8 @@ npm run build
 
 ## Deployment
 
-Deploy `frontend` to Vercel with `NEXT_PUBLIC_API_URL` pointing to the backend. Deploy `backend` as a Render web service using `pip install -r requirements.txt` and `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, backed by hosted PostgreSQL. Run `python -m app.seed` for a new or existing database; it is safe to rerun. CORS origins should contain the production frontend URL.
+Frontend: Vercel. Backend: Render. Database: Neon PostgreSQL. Authentication: Firebase Google Sign-In. Use [the deployment guide](docs/DEPLOYMENT.md) for environment variables, provider setup, seeding, and production verification.
 
 ## Current limits
 
-The seed is a demonstration dataset, not an industry certification standard. Time estimates are transparent planning estimates rather than scientific predictions. Authentication, job scraping, AI services, and admin editing are intentionally outside v1 scope. A later UI pass can add richer charts, animation, and brand styling without changing the domain or API layers.
+The seed is a demonstration dataset, not an industry certification standard. Time estimates are transparent planning estimates rather than scientific predictions. Job scraping, AI services, and admin editing are outside the current scope.

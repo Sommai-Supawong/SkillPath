@@ -7,12 +7,10 @@ node_modules/
 .next/
 .next-build/
 .env
+.env.*
 !.env.example
 coverage/
-skillpath-3e644-firebase-adminsdk-fbsvc-62a5bfaa41.json/
-secrets/skillpath-3e644-firebase-adminsdk-fbsvc-62a5bfaa41.json
-.env
-.env.local
-firebase-service-account.json
-service-account*.json
 secrets/
+firebase-service-account*.json
+service-account*.json
+*.tsbuildinfo

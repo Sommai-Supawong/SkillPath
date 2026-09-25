@@ -3,7 +3,7 @@
 import { useAuth } from '@/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import Link from 'next/link';
 import { 
   Plus, 
@@ -54,12 +54,15 @@ const strategyTitles: Record<string, string> = {
 };
 
 export default function MyPlansPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
 
   const [plans, setPlans] = useState<DevelopmentPlan[]>([]);
   const [careers, setCareers] = useState<CareerSummary[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState(false);
+  const [reload, setReload] = useState(0);
   const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'>('ALL');
   const [toast, setToast] = useState<string | null>(null);
 
@@ -89,25 +92,32 @@ export default function MyPlansPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
+    let active = true;
     async function loadData() {
       if (user) {
         try {
           setFetching(true);
+          setLoadError(null);
+          setAuthError(false);
           const [plansData, careersData] = await Promise.all([
             api<DevelopmentPlan[]>('/plans'),
             api<CareerSummary[]>('/careers').catch(() => [])
           ]);
-          setPlans(plansData);
-          setCareers(careersData);
+          if (active) { setPlans(plansData); setCareers(careersData); }
         } catch (err) {
-          console.error('Error fetching plans:', err);
+          if (active) {
+            const unauthorized = err instanceof ApiError && err.status === 401;
+            setAuthError(unauthorized);
+            setLoadError(unauthorized ? 'ไม่สามารถยืนยันการเข้าสู่ระบบได้ กรุณาลองใหม่หรือเข้าสู่ระบบอีกครั้ง' : err instanceof Error ? err.message : 'โหลดแผนของคุณไม่สำเร็จ');
+          }
         } finally {
-          setFetching(false);
+          if (active) setFetching(false);
         }
       }
     }
-    loadData();
-  }, [user]);
+    void loadData();
+    return () => { active = false; };
+  }, [user, reload]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -236,6 +246,10 @@ export default function MyPlansPage() {
         <div className="loading-state">กำลังโหลดแผนการพัฒนาของคุณ...</div>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <div className="empty-state" role="alert"><AlertCircle size={32} aria-hidden="true" /><h1>ยังโหลดแผนของคุณไม่ได้</h1><p>{loadError}</p><div className="actions" style={{ justifyContent: 'center', flexWrap: 'wrap' }}><button className="secondary" onClick={() => setReload(value => value + 1)}>ลองอีกครั้ง</button>{authError && <button onClick={async () => { await logout(); router.push('/login?redirect=/my-plans'); }}>ออกจากระบบแล้วเข้าสู่ระบบใหม่</button>}</div></div>;
   }
 
   const counts = {

@@ -2,12 +2,21 @@
 
 import { useAuth } from '@/providers/AuthProvider';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, LogOut, User as UserIcon, BookOpen, LayoutDashboard } from 'lucide-react';
 
 export function UserMenu() {
   const { user, loading, logout } = useAuth();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [open]);
 
   if (loading) {
     return <div className="user-menu-skeleton"></div>;
@@ -26,6 +35,8 @@ export function UserMenu() {
       <button 
         className="user-menu-trigger button ghost" 
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-label={user.displayName ? `เมนูบัญชีของ ${user.displayName}` : 'เมนูบัญชี'}
         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px' }}
       >
         {user.photoURL ? (

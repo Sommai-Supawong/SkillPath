@@ -3,6 +3,7 @@
 import { useAuth } from '@/providers/AuthProvider';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
+import { BrandLogo } from '@/components/BrandLogo';
 
 function LoginContent() {
   const { loginWithGoogle, user, loading } = useAuth();
@@ -51,6 +52,7 @@ function LoginContent() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 className="brand" style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+            <BrandLogo size="login" />
             SkillPath<span className="brand-dot">.</span>
           </h1>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--color-text)' }}>

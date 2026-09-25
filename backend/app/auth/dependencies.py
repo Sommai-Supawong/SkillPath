@@ -6,8 +6,10 @@ from app.models.user import User
 from app.auth.verifier import token_verifier
 from datetime import datetime
 from app.models.entities import utcnow
+import logging
 
 security = HTTPBearer()
+logger = logging.getLogger(__name__)
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(security),
@@ -16,7 +18,8 @@ def get_current_user(
     try:
         token = credentials.credentials
         decoded = token_verifier.verify_token(token)
-    except Exception as e:
+    except ValueError:
+        logger.warning("Firebase token verification failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",

@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user
 from app.core.database import get_db
+from app.models.development_plan import DevelopmentPlan
+from app.models.entities import Roadmap, RoadmapItem
 from app.schemas.api import (
     AnalysisOut, AssessmentBatch, CareerDetail, CareerSummary, ProfileCreate, ProfileOut,
     ProfileUpdate, ResourceOut, RoadmapGenerate, RoadmapGraphOut, RoadmapItemUpdate, RoadmapOut, SkillOut,
@@ -9,6 +13,25 @@ from app.schemas.api import (
 from app.services.services import AnalysisService, CareerService, ProfileService, RoadmapService, SkillService
 
 router = APIRouter()
+optional_bearer = HTTPBearer(auto_error=False)
+
+
+def check_profile_access(profile_id: int, db: Session, credentials: HTTPAuthorizationCredentials | None) -> None:
+    """Guest data remains public until a profile is attached to a saved plan."""
+    plans = db.query(DevelopmentPlan.user_id).filter(DevelopmentPlan.learner_profile_id == profile_id).all()
+    if not plans:
+        return
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Sign in to access this saved plan.")
+    user = get_current_user(credentials, db)
+    if any(owner_id != user.id for (owner_id,) in plans):
+        raise HTTPException(status_code=404, detail="Profile not found.")
+
+
+def check_roadmap_access(roadmap_id: int, db: Session, credentials: HTTPAuthorizationCredentials | None) -> None:
+    roadmap = db.get(Roadmap, roadmap_id)
+    if roadmap:
+        check_profile_access(roadmap.profile_id, db, credentials)
 
 
 @router.get("/careers", response_model=list[CareerSummary])
@@ -37,45 +60,56 @@ def create_profile(payload: ProfileCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/profiles/{profile_id}", response_model=ProfileOut)
-def get_profile(profile_id: int, db: Session = Depends(get_db)):
+def get_profile(profile_id: int, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_profile_access(profile_id, db, credentials)
     return ProfileService(db).get(profile_id)
 
 
 @router.put("/profiles/{profile_id}", response_model=ProfileOut)
-def update_profile(profile_id: int, payload: ProfileUpdate, db: Session = Depends(get_db)):
+def update_profile(profile_id: int, payload: ProfileUpdate, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_profile_access(profile_id, db, credentials)
     return ProfileService(db).update(profile_id, payload)
 
 
 @router.post("/profiles/{profile_id}/assessments", response_model=ProfileOut)
-def submit_assessments(profile_id: int, payload: AssessmentBatch, db: Session = Depends(get_db)):
+def submit_assessments(profile_id: int, payload: AssessmentBatch, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_profile_access(profile_id, db, credentials)
     return ProfileService(db).save_assessments(profile_id, payload.assessments)
 
 
 @router.get("/profiles/{profile_id}/analysis", response_model=AnalysisOut)
-def analyze_profile(profile_id: int, career_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+def analyze_profile(profile_id: int, career_id: int | None = Query(default=None), db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_profile_access(profile_id, db, credentials)
     return AnalysisService(db).analyze(profile_id, career_id)
 
 
 @router.post("/roadmaps/generate", response_model=RoadmapOut, status_code=201)
-def generate_roadmap(payload: RoadmapGenerate, db: Session = Depends(get_db)):
+def generate_roadmap(payload: RoadmapGenerate, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_profile_access(payload.profile_id, db, credentials)
     return RoadmapService(db).generate(payload.profile_id, payload.career_id, payload.strategy)
 
 
 @router.get("/roadmaps/{roadmap_id}", response_model=RoadmapOut)
-def get_roadmap(roadmap_id: int, db: Session = Depends(get_db)):
+def get_roadmap(roadmap_id: int, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_roadmap_access(roadmap_id, db, credentials)
     return RoadmapService(db).get(roadmap_id)
 
 
 @router.get("/roadmaps/{roadmap_id}/graph", response_model=RoadmapGraphOut)
-def get_roadmap_graph(roadmap_id: int, db: Session = Depends(get_db)):
+def get_roadmap_graph(roadmap_id: int, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_roadmap_access(roadmap_id, db, credentials)
     return RoadmapService(db).graph(roadmap_id)
 
 
 @router.patch("/roadmap-items/{item_id}", response_model=RoadmapOut)
-def update_roadmap_item(item_id: int, payload: RoadmapItemUpdate, db: Session = Depends(get_db)):
+def update_roadmap_item(item_id: int, payload: RoadmapItemUpdate, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    item = db.get(RoadmapItem, item_id)
+    if item:
+        check_roadmap_access(item.roadmap_id, db, credentials)
     return RoadmapService(db).update_item(item_id, payload.status, payload.current_level)
 
 
 @router.post("/roadmaps/{roadmap_id}/recalculate", response_model=RoadmapOut)
-def recalculate_roadmap(roadmap_id: int, db: Session = Depends(get_db)):
+def recalculate_roadmap(roadmap_id: int, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+    check_roadmap_access(roadmap_id, db, credentials)
     return RoadmapService(db).recalculate(roadmap_id)

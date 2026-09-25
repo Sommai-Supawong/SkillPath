@@ -3,16 +3,24 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 
 import firebase_admin
-from firebase_admin import auth
+from firebase_admin import auth, credentials
+from app.core.config import settings
 
-# Initialize firebase app
-# It uses GOOGLE_APPLICATION_CREDENTIALS automatically if set.
-if not firebase_admin._apps:
-    project_id = os.getenv("FIREBASE_PROJECT_ID")
-    if project_id:
-        firebase_admin.initialize_app(options={'projectId': project_id})
-    else:
-        firebase_admin.initialize_app()
+def initialize_firebase():
+    try:
+        firebase_admin.get_app()
+        return
+    except ValueError:
+        pass
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+    credential_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    if settings.ENVIRONMENT == "production" and (not project_id or not credential_path):
+        raise RuntimeError("FIREBASE_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS are required in production.")
+    try:
+        credential = credentials.Certificate(credential_path) if credential_path else credentials.ApplicationDefault()
+        firebase_admin.initialize_app(credential, options={"projectId": project_id} if project_id else None)
+    except Exception as exc:
+        raise RuntimeError("Firebase Admin credentials could not be initialized.") from exc
 
 
 class TokenVerifier(ABC):
@@ -26,8 +34,8 @@ class FirebaseTokenVerifier(TokenVerifier):
         try:
             decoded_token = auth.verify_id_token(token)
             return decoded_token
-        except Exception as e:
-            raise ValueError(f"Invalid authentication token: {str(e)}")
+        except Exception as exc:
+            raise ValueError("Invalid authentication token") from exc
 
 
 class MockTokenVerifier(TokenVerifier):
@@ -50,5 +58,7 @@ class MockTokenVerifier(TokenVerifier):
 
 
 # Use Mock token verifier if in test environment
-is_test = os.getenv("TESTING") == "1"
+is_test = os.getenv("TESTING") == "1" and settings.ENVIRONMENT != "production"
+if not is_test:
+    initialize_firebase()
 token_verifier = MockTokenVerifier() if is_test else FirebaseTokenVerifier()
